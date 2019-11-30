@@ -18,7 +18,7 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = subscriptions
+        , subscriptions = \_ -> Sub.none
         }
 
 
@@ -29,12 +29,13 @@ main =
 type alias Model =
     { term : String
     , photos : List Photo
+    , loading : Bool
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( Model "" []
+    ( Model "" [] False
     , Cmd.none
     )
 
@@ -44,10 +45,47 @@ init _ =
 
 
 type Msg
-    = GetPhotos (Result Http.Error (List Photo))
+    = HitUnsplash
+    | GetPhotos (Result Http.Error (List Photo))
 
 
-update : Msg -> Model -> ( Model, Cmd.Msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        HitUnsplash ->
+            ( model
+            , Http.request
+                { method = "GET"
+                , headers =
+                    [ Http.header "Authorization" "Client-ID 902cb9fdb5e991ce4aaca23c29e92a6ba573264021433f9d093db910c432d505" ]
+                , url = "https://api.unsplash.com/photos"
+                , expect = Http.expectJson GetPhotos photosDecoder
+                , body = Http.emptyBody
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+            )
+
+        GetPhotos (Ok photos) ->
+            ( { model
+                | photos = photos
+              }
+            , Cmd.none
+            )
+
+        GetPhotos (Err error) ->
+            ( model, Cmd.none )
+
+
+
+--view
+
+
+view : Model -> Html Msg
+view model =
+    div []
+        [ button [ onClick HitUnsplash ] [ text "get latest photos" ]
+        ]
 
 
 
@@ -56,6 +94,17 @@ update : Msg -> Model -> ( Model, Cmd.Msg )
 
 type alias Photo =
     { id : String
-    , urls : String
-    , descriptions : String
+    , regularSizedUrl : String
     }
+
+
+photoDecoder : Decoder Photo
+photoDecoder =
+    D.map2 Photo
+        (D.field "id" D.string)
+        (D.field "urls" (D.field "regular" D.string))
+
+
+photosDecoder : Decoder (List Photo)
+photosDecoder =
+    D.list photoDecoder
