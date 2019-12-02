@@ -85,6 +85,14 @@ view : Model -> Html Msg
 view model =
     div []
         [ button [ onClick HitUnsplash ] [ text "get latest photos" ]
+        , ul [] (List.map showPhotos model.photos)
+        ]
+
+
+showPhotos : Photo -> Html Msg
+showPhotos photo =
+    li []
+        [ img [ src photo.regularSizedUrl ] []
         ]
 
 
